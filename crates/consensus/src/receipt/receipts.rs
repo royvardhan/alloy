@@ -37,7 +37,7 @@ where
     /// Calculates the bloom filter for the receipt and returns the [ReceiptWithBloom] container
     /// type.
     pub fn with_bloom(self) -> ReceiptWithBloom<T> {
-        self.into()
+        ReceiptWithBloom::new(self, self.bloom_slow())
     }
 }
 
@@ -195,14 +195,17 @@ impl<T: Encodable> ReceiptWithBloom<T> {
     }
 }
 
-impl<T> ReceiptWithBloom<T> {
+impl<T> ReceiptWithBloom<T>
+where
+    T: TxReceipt<T>,
+{
     /// Create new [ReceiptWithBloom]
-    pub const fn new(receipt: Receipt<T>, logs_bloom: Bloom) -> Self {
+    pub const fn new(receipt: T, logs_bloom: Bloom) -> Self {
         Self { receipt, logs_bloom }
     }
 
     /// Consume the structure, returning the receipt and the bloom filter
-    pub fn into_components(self) -> (Receipt<T>, Bloom) {
+    pub fn into_components(self) -> (T, Bloom) {
         (self.receipt, self.logs_bloom)
     }
 
@@ -223,7 +226,7 @@ impl<T> ReceiptWithBloom<T> {
         let bloom = Decodable::decode(b)?;
         let logs = Decodable::decode(b)?;
 
-        let receipt = Receipt { status: success, cumulative_gas_used, logs };
+        let receipt = Receipt::<Log> { status: success, cumulative_gas_used, logs };
 
         let this = Self { receipt, logs_bloom: bloom };
         let consumed = started_len - b.len();
@@ -238,21 +241,27 @@ impl<T> ReceiptWithBloom<T> {
     }
 }
 
-impl<T: Encodable> Encodable for ReceiptWithBloom<T> {
+impl<T: Encodable> Encodable for ReceiptWithBloom<T>
+where
+    T: TxReceipt<T>,
+{
     fn encode(&self, out: &mut dyn BufMut) {
         self.encode_fields(out);
     }
 
     fn length(&self) -> usize {
-        let payload_length = self.receipt.status.length()
-            + self.receipt.cumulative_gas_used.length()
+        let payload_length = self.receipt.status_or_post_state().length()
+            + self.receipt.cumulative_gas_used().length()
             + self.logs_bloom.length()
-            + self.receipt.logs.length();
+            + self.receipt.logs().length();
         payload_length + length_of_length(payload_length)
     }
 }
 
-impl<T: Decodable> Decodable for ReceiptWithBloom<T> {
+impl<T: Decodable> Decodable for ReceiptWithBloom<T>
+where
+    T: TxReceipt<T>,
+{
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         Self::decode_receipt(buf)
     }
