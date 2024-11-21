@@ -122,24 +122,27 @@ impl<T> FromIterator<Vec<T>> for Receipts<T> {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[doc(alias = "TransactionReceiptWithBloom", alias = "TxReceiptWithBloom")]
-pub struct ReceiptWithBloom<T = Log> {
+pub struct ReceiptWithBloom<T = Receipt<Log>> {
     #[cfg_attr(feature = "serde", serde(flatten))]
     /// The receipt.
-    pub receipt: Receipt<T>,
+    pub receipt: T,
     /// The bloom filter.
     pub logs_bloom: Bloom,
 }
 
 impl<T> TxReceipt<T> for ReceiptWithBloom<T>
 where
-    T: Clone + fmt::Debug + PartialEq + Eq + Send + Sync,
+    T: TxReceipt<T> + Clone + fmt::Debug + PartialEq + Eq + Send + Sync,
 {
     fn status_or_post_state(&self) -> Eip658Value {
-        self.receipt.status
+        self.receipt.status_or_post_state()
     }
 
     fn status(&self) -> bool {
-        matches!(self.receipt.status, Eip658Value::Eip658(true) | Eip658Value::PostState(_))
+        matches!(
+            self.receipt.status_or_post_state(),
+            Eip658Value::Eip658(true) | Eip658Value::PostState(_)
+        )
     }
 
     fn bloom(&self) -> Bloom {
@@ -151,11 +154,11 @@ where
     }
 
     fn cumulative_gas_used(&self) -> u128 {
-        self.receipt.cumulative_gas_used
+        self.receipt.cumulative_gas_used()
     }
 
     fn logs(&self) -> &[T] {
-        &self.receipt.logs
+        self.receipt.logs()
     }
 }
 
