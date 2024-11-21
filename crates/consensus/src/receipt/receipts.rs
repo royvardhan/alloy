@@ -172,7 +172,10 @@ where
     }
 }
 
-impl<T: Encodable> ReceiptWithBloom<T> {
+impl<T> ReceiptWithBloom<T>
+where
+    T: TxReceipt<T> + Encodable,
+{
     /// Returns the rlp header for the receipt payload.
     fn receipt_rlp_header(&self) -> alloy_rlp::Header {
         alloy_rlp::Header { list: true, payload_length: self.payload_len() }
@@ -181,17 +184,17 @@ impl<T: Encodable> ReceiptWithBloom<T> {
     /// Encodes the receipt data.
     fn encode_fields(&self, out: &mut dyn BufMut) {
         self.receipt_rlp_header().encode(out);
-        self.receipt.status.encode(out);
-        self.receipt.cumulative_gas_used.encode(out);
+        self.receipt.status_or_post_state().encode(out);
+        self.receipt.cumulative_gas_used().encode(out);
         self.logs_bloom.encode(out);
-        self.receipt.logs.encode(out);
+        self.receipt.logs().encode(out);
     }
 
     fn payload_len(&self) -> usize {
-        self.receipt.status.length()
-            + self.receipt.cumulative_gas_used.length()
+        self.receipt.status_or_post_state().length()
+            + self.receipt.cumulative_gas_used().length()
             + self.logs_bloom.length()
-            + self.receipt.logs.length()
+            + self.receipt.logs().length()
     }
 }
 
@@ -241,9 +244,9 @@ where
     }
 }
 
-impl<T: Encodable> Encodable for ReceiptWithBloom<T>
+impl<T> Encodable for ReceiptWithBloom<T>
 where
-    T: TxReceipt<T>,
+    T: TxReceipt<T> + Encodable,
 {
     fn encode(&self, out: &mut dyn BufMut) {
         self.encode_fields(out);
@@ -258,9 +261,9 @@ where
     }
 }
 
-impl<T: Decodable> Decodable for ReceiptWithBloom<T>
+impl<T> Decodable for ReceiptWithBloom<T>
 where
-    T: TxReceipt<T>,
+    T: TxReceipt<T> + Decodable,
 {
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         Self::decode_receipt(buf)
