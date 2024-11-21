@@ -19,7 +19,7 @@ use core::fmt;
 #[cfg_attr(feature = "serde", serde(tag = "type"))]
 #[non_exhaustive]
 #[doc(alias = "TransactionReceiptEnvelope", alias = "TxReceiptEnvelope")]
-pub enum ReceiptEnvelope<T = Receipt<T>> {
+pub enum ReceiptEnvelope<T = Receipt<Log>> {
     /// Receipt envelope with no type flag.
     #[cfg_attr(feature = "serde", serde(rename = "0x0", alias = "0x00"))]
     Legacy(ReceiptWithBloom<T>),
